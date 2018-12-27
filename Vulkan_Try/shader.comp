@@ -1,0 +1,37 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+#include "SharedConst.h"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout (set = 0, binding = 0) uniform UniformBufferObject {
+    vec2 windowSize;
+    float dt;
+    float dummy;
+} ubo;
+
+struct Particle {
+    vec2 pos;
+    vec2 vel;
+};
+
+layout (set = 0, binding = 1) buffer ParticleBufferObject {
+    Particle part[];
+} pbo;
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+
+    vec2 acc = vec2(0);
+
+    for (uint i = 0; i < PARTICLE_COUNT; i++) {
+        vec2 diff = pbo.part[i].pos - pbo.part[id].pos;
+        float len = max(1e-10, length(diff));
+        float k = 1e-4 * (len - 0.5) / len;
+        acc += k * diff;
+    }
+
+    float t = ubo.dt;
+    pbo.part[id].pos += t * pbo.part[id].vel + 0.5 * t * t * acc;
+    pbo.part[id].vel += t * acc;
+    pbo.part[id].vel *= 0.97;
+}
